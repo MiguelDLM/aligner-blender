@@ -48,7 +48,7 @@ def _draw_callback_3d(_self, context):
     try:
         landmarks = _visible_landmarks(context)
         _label_cache = landmarks
-        print(f"[DEBUG 3D] Found {len(landmarks)} landmarks")
+
     except Exception as e:
         print(f"[ERROR 3D] {e}")
         import traceback
@@ -57,7 +57,6 @@ def _draw_callback_3d(_self, context):
 
 def _draw_callback_2d(_self, context):
     """Draw labels, lines, and arrowheads in POST_PIXEL using cached data."""
-    print(f"[DEBUG 2D] Callback called, cache has {len(_label_cache)} items")
     
     if not _label_cache:
         print("[DEBUG 2D] Cache is empty, returning")
@@ -66,7 +65,7 @@ def _draw_callback_2d(_self, context):
     region = context.region
     rv3d = context.region_data
     if region is None or rv3d is None:
-        print("[DEBUG 2D] No region or rv3d, returning")
+
         return
 
     # No text labels anymore. Instead draw a colored circle marker per landmark
@@ -109,12 +108,11 @@ def _draw_callback_2d(_self, context):
         gpu.state.blend_set('ALPHA')
 
         shader = gpu.shader.from_builtin('UNIFORM_COLOR')
-        print(f"[DEBUG 2D] Starting to draw {len(_label_cache)} landmarks")
+
 
         for world_co, name in _label_cache:
             co2d = location_3d_to_region_2d(region, rv3d, world_co)
             if co2d is None:
-                print(f"[DEBUG 2D] Landmark '{name}' not visible (co2d is None)")
                 continue
 
             point_2d = Vector((co2d.x, co2d.y))
@@ -128,8 +126,6 @@ def _draw_callback_2d(_self, context):
 
             color = _name_to_color(name)
             
-            print(f"[DEBUG 2D] Drawing landmark '{name}' at {label_pos} with color {color}")
-
             # Draw filled circle at point position with per-landmark color
             circle_verts = _circle_fan(label_pos, radius=10.0, segments=24)
             batch_circle = batch_for_shader(shader, 'TRI_FAN', {"pos": circle_verts})
@@ -160,7 +156,7 @@ def _area_redraw_all_view3d():
 
 def register_draw_handlers():
     global _handler_3d, _handler_2d
-    print("[DEBUG] Registering draw handlers...")
+
     if _handler_3d is None:
         _handler_3d = bpy.types.SpaceView3D.draw_handler_add(
             _draw_callback_3d,
@@ -168,7 +164,7 @@ def register_draw_handlers():
             'WINDOW',
             'POST_VIEW'
         )
-        print(f"[DEBUG] 3D handler registered: {_handler_3d}")
+
     if _handler_2d is None:
         _handler_2d = bpy.types.SpaceView3D.draw_handler_add(
             _draw_callback_2d,
@@ -176,25 +172,25 @@ def register_draw_handlers():
             'WINDOW',
             'POST_PIXEL'
         )
-        print(f"[DEBUG] 2D handler registered: {_handler_2d}")
+
     _area_redraw_all_view3d()
-    print("[DEBUG] Handlers registered and redraw triggered")
+
 
 
 def unregister_draw_handlers():
     global _handler_3d, _handler_2d
-    print("[DEBUG] Unregistering draw handlers...")
+
     if _handler_3d is not None:
         try:
             bpy.types.SpaceView3D.draw_handler_remove(_handler_3d, 'WINDOW')
-            print("[DEBUG] 3D handler unregistered")
+
         except Exception as e:
             print(f"[ERROR] Failed to unregister 3D handler: {e}")
         _handler_3d = None
     if _handler_2d is not None:
         try:
             bpy.types.SpaceView3D.draw_handler_remove(_handler_2d, 'WINDOW')
-            print("[DEBUG] 2D handler unregistered")
+
         except Exception as e:
             print(f"[ERROR] Failed to unregister 2D handler: {e}")
         _handler_2d = None
@@ -204,7 +200,7 @@ def unregister_draw_handlers():
 def preview_toggle_update(self, _context):
     """Scene property update callback to toggle preview handlers."""
     enabled = bool(getattr(self, 'procrustes_preview_active', False))
-    print(f"[DEBUG] Preview toggle update called, enabled={enabled}")
+
     if enabled:
         register_draw_handlers()
     else:
