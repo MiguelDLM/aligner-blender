@@ -20,6 +20,7 @@ from .operators import (
     PROCRUSTES_OT_clear_landmarks
 )
 from .panel import PROCRUSTES_PT_panel
+from .preview import PROCRUSTES_OT_toggle_landmark_preview, cleanup as preview_cleanup
 
 
 def register():
@@ -34,6 +35,11 @@ def register():
     
     # Register UI panel
     bpy.utils.register_class(PROCRUSTES_PT_panel)
+    # Register preview operator
+    try:
+        bpy.utils.register_class(PROCRUSTES_OT_toggle_landmark_preview)
+    except Exception:
+        pass
     
     # Scene properties
     bpy.types.Scene.procrustes_landmark_name = bpy.props.StringProperty(
@@ -66,6 +72,13 @@ def register():
         description="Optional: choose an object to be the fixed reference for alignment",
         type=bpy.types.Object
     )
+    
+    # Preview active flag
+    bpy.types.Scene.procrustes_preview_active = bpy.props.BoolProperty(
+        name="Preview Active",
+        description="Internal: whether landmark preview is active",
+        default=False
+    )
 
 
 def unregister():
@@ -87,3 +100,10 @@ def unregister():
     del bpy.types.Scene.procrustes_allow_scale
     del bpy.types.Scene.procrustes_allow_reflection
     del bpy.types.Scene.procrustes_reference_object
+    # Preview cleanup and property
+    try:
+        bpy.utils.unregister_class(PROCRUSTES_OT_toggle_landmark_preview)
+    except Exception:
+        pass
+    preview_cleanup()
+    del bpy.types.Scene.procrustes_preview_active
