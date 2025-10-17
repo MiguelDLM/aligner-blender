@@ -81,7 +81,10 @@ class PROCRUSTES_PT_panel(bpy.types.Panel):
         
         row = box.row()
         row.prop(scene, "procrustes_allow_reflection", text="Allow Reflection")
-        
+
+        row = box.row()
+        row.prop(scene, "procrustes_reference_object", text="Reference Object")
+
         layout.separator()
         
         # Alignment Execution Section

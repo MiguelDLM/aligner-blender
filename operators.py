@@ -182,16 +182,35 @@ class PROCRUSTES_OT_align_objects(bpy.types.Operator):
             self.report({'ERROR'}, "Need at least 3 landmarks for alignment")
             return {'CANCELLED'}
         
-        # Use the first object as reference
-        reference_obj_name = selected_objects[0].name
-        reference_landmarks = objects_landmarks[reference_obj_name]['landmarks']
-        
-        self.report({'INFO'}, f"Using '{reference_obj_name}' as reference")
-        
-        # Align each other object to the reference
+        # Determine reference: either a chosen object or midpoint
+        ref_obj = getattr(scene, 'procrustes_reference_object', None)
+        reference_landmarks = None
+        reference_obj_name = None
+
+        if ref_obj and ref_obj.name in objects_landmarks:
+            reference_obj_name = ref_obj.name
+            reference_landmarks = objects_landmarks[reference_obj_name]['landmarks']
+            self.report({'INFO'}, f"Using '{reference_obj_name}' as reference (will remain fixed)")
+        else:
+            # If no reference object chosen or it's not in selection, use mean of points
+            self.report({'INFO'}, "No reference object chosen or not in selection — using mean shape as reference")
+            # Build mean points across objects
+            landmark_names_sorted = sorted(list(landmark_names))
+            mean_points = []
+            for lm_name in landmark_names_sorted:
+                pts = []
+                for obj_name, data in objects_landmarks.items():
+                    pts.append(np.array(list(data['landmarks'][lm_name])))
+                mean = np.mean(np.vstack(pts), axis=0)
+                mean_points.append(mean)
+            reference_landmarks = {lm: Vector(pt) for lm, pt in zip(landmark_names_sorted, mean_points)}
+            # For the mean-based reference we won't skip any objects; all will be transformed
+
+        # Align each other object to the reference (or to mean reference)
         for obj_name, data in objects_landmarks.items():
-            if obj_name == reference_obj_name:
-                continue  # Skip reference object
+            # If there is a chosen reference object, keep it fixed
+            if reference_obj_name is not None and obj_name == reference_obj_name:
+                continue
             
             obj = data['object']
             target_landmarks = data['landmarks']

@@ -59,6 +59,13 @@ def register():
         description="Allow reflection during Procrustes alignment",
         default=False
     )
+    
+    # Reference object selector (optional)
+    bpy.types.Scene.procrustes_reference_object = bpy.props.PointerProperty(
+        name="Reference Object",
+        description="Optional: choose an object to be the fixed reference for alignment",
+        type=bpy.types.Object
+    )
 
 
 def unregister():
@@ -79,3 +86,4 @@ def unregister():
     del bpy.types.Scene.procrustes_selected_vertex
     del bpy.types.Scene.procrustes_allow_scale
     del bpy.types.Scene.procrustes_allow_reflection
+    del bpy.types.Scene.procrustes_reference_object
