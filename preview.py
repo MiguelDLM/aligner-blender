@@ -31,14 +31,24 @@ def _visible_landmarks(context):
         if obj.hide_viewport or obj.hide_get():
             continue
 
+        mesh = obj.data
+        
         for key in obj.keys():
             if str(key).startswith("landmark_"):
                 try:
-                    coord = Vector(obj[key])
-                except Exception:
+                    # Get vertex index from custom property
+                    vert_index = int(obj[key])
+                    # Validate index
+                    if vert_index < 0 or vert_index >= len(mesh.vertices):
+                        continue
+                    
+                    # Get vertex world coordinates
+                    vert_local = mesh.vertices[vert_index].co
+                    coord = obj.matrix_world @ vert_local
+                    landmarks.append((coord, str(key)))
+                except (ValueError, TypeError, IndexError):
+                    # invalid landmark data or index; skip silently
                     continue
-                landmarks.append((coord, str(key)))
-
     return landmarks
 
 

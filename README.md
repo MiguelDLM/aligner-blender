@@ -12,8 +12,10 @@ Procrustes Aligner allows you to precisely align two or more 3D objects by defin
 ## Key Features
 
 - **Landmark-based Alignment**: Define corresponding points across multiple objects
+- **Dynamic Landmarks**: Landmarks reference vertex indices, not coordinates - they follow mesh deformations
 - **Procrustes Analysis**: Optimal transformation using least-squares fitting
 - **Flexible Options**: Control scaling and reflection permissions
+- **Visual Preview**: Color-coded circles show landmark positions in real-time
 - **Custom Properties**: Landmarks stored as object custom properties
 - **Easy Workflow**: Intuitive panel with clear step-by-step process
 
@@ -48,7 +50,7 @@ For each object you want to align:
 3. **Select a vertex** that represents a corresponding anatomical or geometric point
 4. **Enter a landmark name** in the "Name" field (e.g., `landmark_1`, `tip`, `center`)
    - Use the same names across all objects for corresponding points
-5. **Click "Submit Landmark"** - The landmark is saved as a custom property
+5. **Click "Submit Landmark"** - The vertex index is saved as a custom property
 6. **Repeat** for all landmarks on this object
 
 **Important**: All objects must have:
@@ -56,12 +58,27 @@ For each object you want to align:
 - The same landmark names
 - At least 3 landmarks for proper alignment
 
-### 3. Alignment Options
+**Note**: Landmarks store the **vertex index**, not coordinates. This means:
+- If you modify the mesh (move vertices, sculpt, etc.), landmarks will follow the vertex
+- Landmarks remain valid even after transformations or deformations
+- You can see landmark positions in real-time with the preview toggle
 
+### 3. Visual Preview
+
+- **Enable "Landmark Preview"** toggle to visualize all landmarks
+- Each landmark name gets a unique color (same name = same color across objects)
+- Colored circles appear at landmark positions in the 3D viewport
+- Helps verify that corresponding landmarks are correctly placed
+
+### 4. Alignment Options
+
+- **Reference Object**: Choose a specific object as reference (optional)
+  - If set, this object stays fixed and others align to it
+  - If not set, all objects align to their mean shape
 - **Allow Scaling**: Enable if objects may have different sizes and need to be scaled to match
 - **Allow Reflection**: Enable to allow mirroring transformations (usually disabled for anatomical data)
 
-### 4. Execute Alignment
+### 5. Execute Alignment
 
 1. **Select all objects** you want to align (including the reference object)
 2. The **first selected object** will be used as the reference (others will align to it)

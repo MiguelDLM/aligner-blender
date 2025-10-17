@@ -56,16 +56,29 @@ class PROCRUSTES_PT_panel(bpy.types.Panel):
                     
                     for lm in sorted(landmarks):
                         try:
-                            coords = obj[lm]
-                            coords = list(coords)
+                            # Landmarks now store vertex index (integer)
+                            vert_index = int(obj[lm])
+                            
+                            # Get current world coordinates from vertex index
+                            from .operators import get_vertex_world_coord
+                            world_coord = get_vertex_world_coord(obj, vert_index)
+                            
+                            if world_coord:
+                                row = box.row(align=True)
+                                row.label(text=f"{lm}: v{vert_index} ({world_coord.x:.3f}, {world_coord.y:.3f}, {world_coord.z:.3f})")
+                                # Delete button for each landmark
+                                op = row.operator("procrustes.delete_landmark", text="", icon='X')
+                                op.landmark_name = lm
+                            else:
+                                row = box.row(align=True)
+                                row.label(text=f"{lm}: v{vert_index} <invalid index>")
+                                op = row.operator("procrustes.delete_landmark", text="", icon='X')
+                                op.landmark_name = lm
+                        except (ValueError, TypeError, IndexError):
                             row = box.row(align=True)
-                            row.label(text=f"{lm}: ({coords[0]:.3f}, {coords[1]:.3f}, {coords[2]:.3f})")
-                            # Delete button for each landmark
+                            row.label(text=f"{lm}: <invalid data>")
                             op = row.operator("procrustes.delete_landmark", text="", icon='X')
                             op.landmark_name = lm
-                        except Exception:
-                            row = box.row()
-                            row.label(text=f"{lm}: <invalid>")
         else:
             row = box.row()
             row.label(text="Select a mesh object", icon='INFO')

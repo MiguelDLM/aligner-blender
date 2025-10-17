@@ -4,6 +4,34 @@ from mathutils import Vector, Matrix
 import numpy as np
 
 
+def get_vertex_world_coord(obj, vert_index):
+    """Get world coordinates of a vertex by its index.
+    
+    Args:
+        obj: Blender mesh object
+        vert_index: Integer index of the vertex
+        
+    Returns:
+        Vector with world coordinates, or None if index is invalid
+    """
+    if obj.type != 'MESH':
+        return None
+    
+    mesh = obj.data
+    
+    # Validate index
+    if vert_index < 0 or vert_index >= len(mesh.vertices):
+        return None
+    
+    # Get vertex local coordinates
+    vert_local = mesh.vertices[vert_index].co
+    
+    # Transform to world space
+    world_coord = obj.matrix_world @ vert_local
+    
+    return world_coord
+
+
 class PROCRUSTES_OT_select_landmark(bpy.types.Operator):
     """Enter Edit Mode to select a vertex as landmark"""
     bl_idname = "procrustes.select_landmark"
@@ -60,12 +88,11 @@ class PROCRUSTES_OT_submit_landmark(bpy.types.Operator):
         if len(selected_verts) > 1:
             self.report({'WARNING'}, "Multiple vertices selected. Using the first one.")
 
-        # Get the vertex coordinates in world space
+        # Get the vertex index
         vert = selected_verts[0]
-        # If it's a BMesh vert it has .co; mesh.vertex also has .co
-        world_coord = obj.matrix_world @ vert.co
+        vert_index = vert.index
         
-        # Store as custom property
+        # Store vertex index as custom property (integer)
         # Create a unique landmark name if needed
         landmark_name = scene.procrustes_landmark_name or "landmark"
         base_name = landmark_name
@@ -76,16 +103,16 @@ class PROCRUSTES_OT_submit_landmark(bpy.types.Operator):
             unique_name = f"{base_name}_{counter}"
             counter += 1
 
-        obj[unique_name] = [world_coord.x, world_coord.y, world_coord.z]
+        obj[unique_name] = vert_index
 
         landmark_name = unique_name
-        
-        self.report({'INFO'}, f"Landmark '{landmark_name}' created at {world_coord}")
-        
+
+        self.report({'INFO'}, f"Landmark '{landmark_name}' created at vertex index {vert_index}")
+
         # Keep the user's mode unchanged (we didn't change modes)
         # Optionally update the scene's landmark name base to suggest the next name
         scene.procrustes_landmark_name = f"{base_name}"
-        
+
         return {'FINISHED'}
 
 
@@ -155,10 +182,22 @@ class PROCRUSTES_OT_align_objects(bpy.types.Operator):
             landmarks = {}
             for key in obj.keys():
                 if key.startswith("landmark_"):
-                    landmarks[key] = Vector(obj[key])
+                    # Get vertex index from custom property
+                    try:
+                        vert_index = int(obj[key])
+                        world_coord = get_vertex_world_coord(obj, vert_index)
+                        if world_coord is not None:
+                            landmarks[key] = world_coord
+                        else:
+                            self.report({'WARNING'}, 
+                                       f"Invalid vertex index {vert_index} for landmark '{key}' in '{obj.name}'")
+                    except (ValueError, TypeError):
+                        self.report({'WARNING'}, 
+                                   f"Invalid landmark data for '{key}' in '{obj.name}' (expected vertex index)")
+                        continue
             
             if len(landmarks) == 0:
-                self.report({'ERROR'}, f"Object '{obj.name}' has no landmarks")
+                self.report({'ERROR'}, f"Object '{obj.name}' has no valid landmarks")
                 return {'CANCELLED'}
             
             objects_landmarks[obj.name] = {
