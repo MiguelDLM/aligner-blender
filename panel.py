@@ -112,5 +112,5 @@ class PROCRUSTES_PT_panel(bpy.types.Panel):
             row.label(text="Select a mesh to clear landmarks")
 
         row = box.row()
-        # Preview toggle (works globally)
-        op = row.operator("procrustes.toggle_landmark_preview", text="Toggle Landmark Preview", icon='HIDE_OFF')
+        icon = 'HIDE_OFF' if scene.procrustes_preview_active else 'HIDE_ON'
+        row.prop(scene, "procrustes_preview_active", text="Landmark Preview", toggle=True, icon=icon)
