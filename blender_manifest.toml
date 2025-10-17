@@ -1,0 +1,18 @@
+schema_version = "1.0.0"
+
+id = "procrustes_aligner"
+name = "Procrustes Aligner"
+tagline = "Align multiple objects using landmark-based Procrustes analysis"
+version = "1.0.0"
+type = "add-on"
+
+maintainer = "Miguel Diaz de Leon-Munoz <migueldlm1307@gmail.com>"
+description = """
+This Blender add-on allows users to align multiple objects in the 3D viewport using landmark-based Procrustes analysis. By selecting corresponding landmarks on different objects, users can achieve optimal alignment based on shape similarity. The add-on provides an intuitive interface for selecting landmarks, performing the alignment, and visualizing the results.
+"""
+license = ["SPDX:GPL-3.0-or-later"]
+
+blender_version_min = "4.4.0"
+
+[permissions]
+files = "Import/export data from the file system"
