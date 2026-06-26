@@ -3,179 +3,204 @@
 ![Blender](https://img.shields.io/badge/Blender-4.4+-orange.svg)
 ![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg)
 
-Advanced Blender add-on for aligning multiple mesh objects using landmark-based Procrustes analysis.
+Blender add-on for aligning one mesh object onto another using landmark
+correspondences. It offers both **rigid Procrustes** alignment and a non-rigid
+**Thin-Plate Spline (TPS)** warp, plus a built-in landmark verifier.
 
 ## Overview
 
-Procrustes Aligner allows you to precisely align two or more 3D objects by defining corresponding landmarks (vertices) on each object. The add-on uses Procrustes analysis to compute the optimal rotation, translation, and optionally scaling to minimize the distance between corresponding landmarks across all objects.
+You pick two objects — an **Original** (the reference, stays fixed) and a
+**Target** (the object that gets moved/deformed). You then place pairs of
+corresponding landmarks (one vertex on each object) and align the Target onto
+the Original using the method of your choice.
 
 ## Key Features
 
-- **Landmark-based Alignment**: Define corresponding points across multiple objects
-- **Dynamic Landmarks**: Landmarks reference vertex indices, not coordinates - they follow mesh deformations
-- **Procrustes Analysis**: Optimal transformation using least-squares fitting
-- **Flexible Options**: Control scaling and reflection permissions
-- **Visual Preview**: Color-coded circles show landmark positions in real-time
-- **Custom Properties**: Landmarks stored as object custom properties
-- **Easy Workflow**: Intuitive panel with clear step-by-step process
+- **Original / Target selectors**: pick the two objects directly in the panel
+- **Guided pairing workflow**: place a vertex on the Original, then the add-on
+  switches you straight to the Target to pick the equivalent vertex
+- **Two alignment methods**:
+  - **Procrustes (rigid)** — optimal rotation, translation and global scale
+    (best least-squares compromise)
+  - **Thin-Plate Spline (warp)** — deforms the Target mesh so every landmark
+    lands *exactly* on its match, with smooth deformation in between
+- **Landmark verifier**: detects mis-clicks, duplicate vertices, out-of-range
+  indices, unpaired/collinear/coplanar landmarks and outlier residuals
+- **Dynamic landmarks**: stored as vertex indices, so they follow the mesh
+- **Visual preview**: color-coded markers show landmark positions in real time
 
 ## Installation
 
 ### Requirements
 
-- Developed and tested on Blender 4.4 or later ([Download Blender](https://www.blender.org/))
+- Blender 4.4 or later ([Download Blender](https://www.blender.org/))
 - NumPy (included with Blender by default)
 
 ### Installation Steps
 
-1. Download or clone this repository
-2. In Blender, go to Edit > Preferences > Add-ons
-3. Click "Install from disk" and select the folder or ZIP file
+1. Download the release `.zip` (or clone this repository)
+2. In Blender, go to **Edit > Preferences > Add-ons**
+3. Click **Install from disk** and select the ZIP file
 4. Enable the add-on by checking the box next to "Procrustes Aligner"
-5. The add-on panel will appear in the 3D Viewport sidebar (press `N` to toggle sidebar)
+5. The panel appears in the 3D Viewport sidebar — press `N` and open the
+   **Procrustes** tab
 
 ## Workflow
 
-### 1. Prepare Your Objects
+### 1. Select the objects
 
-- Import or create multiple mesh objects that you want to align
-- Ensure all objects are visible and selectable
+In the **Objects** box, set:
 
-### 2. Define Landmarks
+- **Original** — the reference object (stays fixed)
+- **Target** — the object that will be aligned onto the Original
 
-For each object you want to align:
+Both must be different mesh objects.
 
-1. **Select the object** in the viewport
-2. **Click "Select Landmark"** - This enters Edit Mode with vertex selection active
-3. **Select a vertex** that represents a corresponding anatomical or geometric point
-4. **Enter a landmark name** in the "Name" field (e.g., `landmark_1`, `tip`, `center`)
-   - Use the same names across all objects for corresponding points
-5. **Click "Submit Landmark"** - The vertex index is saved as a custom property
-6. **Repeat** for all landmarks on this object
+### 2. Create landmark pairs
 
-**Important**: All objects must have:
-- The same number of landmarks
-- The same landmark names
-- At least 3 landmarks for proper alignment
+1. (Optional) Edit the **Name** field for the next landmark pair
+   (defaults to `landmark_1`, `landmark_2`, … and auto-increments).
+2. Click **Select Landmark** — the add-on enters Edit Mode on the **Original**.
+3. Select the vertex you want and click **Submit Landmark**.
+4. The add-on automatically switches to Edit Mode on the **Target** — select
+   the *equivalent* vertex and click **Submit Landmark** again.
+5. The pair is saved on both objects and the name auto-increments. Repeat for
+   as many pairs as you need.
 
-**Note**: Landmarks store the **vertex index**, not coordinates. This means:
-- If you modify the mesh (move vertices, sculpt, etc.), landmarks will follow the vertex
-- Landmarks remain valid even after transformations or deformations
-- You can see landmark positions in real-time with the preview toggle
+Use **Cancel** at any point to abort the current pair (a half-finished pair is
+cleaned up automatically).
+
+Each pair is listed as `landmark_n:  vX → vY`, where `vX` is the vertex index
+on the Original and `vY` on the Target. Use the **X** button to delete a pair.
+
+**How many do I need?**
+- **3+** pairs for Procrustes
+- **4+** non-coplanar pairs for TPS
 
 ### 3. Visual Preview
 
-- **Enable "Landmark Preview"** toggle to visualize all landmarks
-- Each landmark name gets a unique color (same name = same color across objects)
-- Colored circles appear at landmark positions in the 3D viewport
-- Helps verify that corresponding landmarks are correctly placed
+Enable the **Landmark Preview** toggle to draw colored markers at every
+landmark in the 3D viewport (same name = same color), making it easy to check
+that corresponding points line up.
 
 ### 4. Alignment Options
 
-- **Reference Object**: Choose a specific object as reference (optional)
-  - If set, this object stays fixed and others align to it
-  - If not set, all objects align to their mean shape
-- **Allow Scaling**: Enable if objects may have different sizes and need to be scaled to match
-- **Allow Reflection**: Enable to allow mirroring transformations (usually disabled for anatomical data)
+- **Method**
+  - **Procrustes (rigid)** — rotates, translates and (optionally) scales the
+    whole Target. It minimizes the sum of squared landmark distances, so it is
+    a *best compromise*: landmarks do **not** coincide exactly unless the two
+    shapes are genuinely related by a similarity transform.
+  - **Thin-Plate Spline (warp)** — deforms the Target geometry so each landmark
+    lands exactly on its Original match, warping the rest of the mesh smoothly.
+    Use this when you need the landmarks to actually coincide. ⚠️ This modifies
+    the Target mesh (undoable with `Ctrl+Z`).
+- **Allow Scaling** *(Procrustes)* — scale the Target to match the Original size
+- **Allow Reflection** *(Procrustes)* — allow mirroring (usually off for
+  anatomical data)
+- **Smoothing** *(TPS)* — `0` = exact landmark match; higher values relax the
+  fit so noisy or mis-clicked landmarks are not matched exactly
 
-### 5. Execute Alignment
+### 5. Verify & Execute
 
-1. **Select all objects** you want to align (including the reference object)
-2. The **first selected object** will be used as the reference (others will align to it)
-3. **Click "Align Objects"** - The Procrustes analysis will be performed
-4. Objects will be transformed to minimize landmark distances
+- **Verify Landmarks** runs a set of checks and shows the results in a popup.
+  This is the fastest way to find a mis-clicked vertex: a landmark placed on the
+  wrong vertex shows up as an **unusually large residual** outlier.
+- **Align Target to Original** runs the selected method. Errors block the run;
+  warnings are reported but do not stop it.
 
-### 5. Utilities
+### 6. Utilities
 
-- **Delete Landmark**: Click the X button next to any landmark to remove it
-- **Clear All Landmarks**: Remove all landmarks from the active object
+- **Clear All Landmarks** removes every landmark from both objects
+- **Landmark Preview** toggles the viewport overlay
 
-## Example Use Cases
+## Landmark Verification
 
-### Aligning Fossil Specimens
+The verifier (and the pre-alignment check) detects:
 
-Align multiple fossil scans by marking corresponding anatomical landmarks:
-- `landmark_1` = anterior tip
-- `landmark_2` = posterior end
-- `landmark_3` = dorsal ridge
-- etc.
-
-### Registering Medical Images
-
-Align 3D reconstructions from different imaging modalities:
-- Mark anatomical reference points
-- Allow scaling if images have different resolutions
-
-### Comparing Shape Variations
-
-Study shape differences across specimens:
-- Align all specimens to a reference
-- Analyze remaining differences after optimal alignment
+| Check | Severity |
+|-------|----------|
+| Same vertex used by two landmarks on one object (likely mis-click) | warning |
+| A landmark with an unusually large residual after a rigid fit | warning |
+| Vertex index out of range | error |
+| Landmark present on only one object (unpaired) | warning |
+| Fewer than the required number of pairs (3 / 4 for TPS) | error |
+| Collinear landmarks | error |
+| Coplanar landmarks | warning (error for TPS) |
+| Non-integer landmark data | error |
 
 ## Technical Details
 
 ### Procrustes Analysis
 
-The add-on implements **Ordinary Procrustes Analysis (OPA)** which finds the optimal transformation to align one configuration of landmarks to another. The algorithm:
+Implements **Ordinary Procrustes Analysis (OPA)**: center both point sets,
+optionally scale, then find the optimal rotation via Singular Value
+Decomposition (SVD), and translate to align centroids. The result minimizes:
 
-1. **Centers** both point sets by subtracting their centroids
-2. **Scales** (optional) to normalize size differences
-3. **Rotates** using Singular Value Decomposition (SVD) to find optimal rotation matrix
-4. **Translates** to align centroids
+$$\sum_{i=1}^{n} ||x_i - (s\,R\,y_i + t)||^2$$
 
-The transformation minimizes the sum of squared distances between corresponding landmarks.
+where **R** is rotation, **t** translation and **s** an optional global scale.
+Because it is a rigid (similarity) transform, it cannot change the Target's
+proportions — it produces the best compromise, not exact landmark coincidence.
 
-### Mathematical Foundation
+### Thin-Plate Spline
 
-Given reference points **X** and target points **Y**, we find transformation **T** that minimizes:
-
-$$\sum_{i=1}^{n} ||x_i - T(y_i)||^2$$
-
-Where **T** includes rotation **R**, translation **t**, and optional scaling **s**:
-
-$$T(y) = s \cdot R \cdot y + t$$
+The TPS finds a smooth mapping that interpolates every landmark exactly (when
+smoothing is `0`) while minimizing bending energy. In 3D it uses the biharmonic
+radial kernel `U(r) = r`. Each Target vertex is taken to world space, warped,
+and written back, so the landmarks coincide with the Original's. A non-zero
+**smoothing** value relaxes the interpolation to suppress noisy landmarks.
 
 ## Landmark Storage
 
-Landmarks are stored as custom properties on each object with the format:
+Landmarks are stored as integer custom properties (vertex indices) on each
+object:
+
 ```python
-obj["landmark_name"] = [x, y, z]  # World coordinates
+obj["landmark_1"] = 482   # index of the vertex used as this landmark
 ```
 
-This allows landmarks to persist with the Blender file and be easily inspected or modified.
+Because indices (not coordinates) are stored, landmarks follow the mesh through
+edits and deformations, and they persist with the `.blend` file.
 
 ## Tips for Best Results
 
-1. **Consistent Landmark Naming**: Use identical names for corresponding points across all objects
-2. **Sufficient Landmarks**: Use at least 3 non-colinear landmarks; more is better for complex shapes
-3. **Distributed Landmarks**: Place landmarks across the entire object, not just in one region
-4. **Anatomical Correspondence**: For biological specimens, use true homologous points
-5. **Check Alignment**: Visually inspect results and adjust landmarks if needed
+1. **True correspondence**: pick genuinely homologous points on both objects
+2. **Distribute landmarks** across the whole object, not one region
+3. **Enough landmarks**: 3+ for Procrustes, 4+ non-coplanar for TPS
+4. **Verify first**: run *Verify Landmarks* to catch mis-clicks before aligning
+5. **Pick the right method**: Procrustes to reposition, TPS to make landmarks
+   coincide / study shape differences
 
 ## Troubleshooting
 
-### "All objects must have the same landmark names"
+### Poor alignment with Procrustes
 
-Make sure you've defined the exact same landmark names on each object. Names are case-sensitive.
+Procrustes is rigid: if the two objects have different shapes, the landmarks
+**cannot** all coincide. Either accept the least-squares compromise or switch to
+**TPS** for exact landmark matching.
 
-### "Need at least 3 landmarks for alignment"
+### A single landmark seems to throw everything off
 
-Define at least 3 landmarks on each object. More landmarks generally give better results.
+Run **Verify Landmarks** — a wrong vertex pick (e.g. accidentally selecting
+vertex 0) is flagged as an outlier residual or a duplicate vertex.
 
-### Poor Alignment Quality
+### "Need at least N valid landmark pairs"
 
-- Ensure landmarks truly correspond across objects
-- Try adding more landmarks
-- Check if landmarks are well-distributed (not all in one small region)
-- Verify that Allow Scaling is set appropriately for your use case
+Add more pairs: 3 for Procrustes, 4 (non-coplanar) for TPS.
 
 ## License
 
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <http://www.gnu.org/licenses/>.
 
 ## Citation
 
@@ -192,9 +217,11 @@ Díaz de León-Muñoz, E. M. (2025). Procrustes Aligner: A Blender Add-On for La
 
 ## Acknowledgments
 
-Inspired by standard Procrustes analysis methods used in geometric morphometrics and shape analysis research.
+Inspired by standard Procrustes and thin-plate-spline methods used in geometric
+morphometrics and shape analysis research.
 
 ## References
 
 - Dryden, I. L., & Mardia, K. V. (2016). *Statistical shape analysis: with applications in R* (Vol. 995). John Wiley & Sons.
 - Rohlf, F. J., & Slice, D. (1990). Extensions of the Procrustes method for the optimal superimposition of landmarks. *Systematic Biology*, 39(1), 40-59.
+- Bookstein, F. L. (1989). Principal warps: thin-plate splines and the decomposition of deformations. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 11(6), 567-585.

@@ -13,89 +13,127 @@
 
 import bpy
 from .operators import (
-    PROCRUSTES_OT_select_landmark,
+    PROCRUSTES_OT_start_landmark,
     PROCRUSTES_OT_submit_landmark,
-    PROCRUSTES_OT_delete_landmark,
+    PROCRUSTES_OT_cancel_landmark,
+    PROCRUSTES_OT_delete_landmark_pair,
+    PROCRUSTES_OT_verify_landmarks,
     PROCRUSTES_OT_align_objects,
-    PROCRUSTES_OT_clear_landmarks
+    PROCRUSTES_OT_clear_landmarks,
 )
 from .panel import PROCRUSTES_PT_panel
 from .preview import preview_toggle_update, cleanup as preview_cleanup
 
 
 def register():
-    """Register addon classes and properties"""
-    
-    # Register operators
-    bpy.utils.register_class(PROCRUSTES_OT_select_landmark)
+    bpy.utils.register_class(PROCRUSTES_OT_start_landmark)
     bpy.utils.register_class(PROCRUSTES_OT_submit_landmark)
-    bpy.utils.register_class(PROCRUSTES_OT_delete_landmark)
+    bpy.utils.register_class(PROCRUSTES_OT_cancel_landmark)
+    bpy.utils.register_class(PROCRUSTES_OT_delete_landmark_pair)
+    bpy.utils.register_class(PROCRUSTES_OT_verify_landmarks)
     bpy.utils.register_class(PROCRUSTES_OT_align_objects)
     bpy.utils.register_class(PROCRUSTES_OT_clear_landmarks)
-    
-    # Register UI panel
     bpy.utils.register_class(PROCRUSTES_PT_panel)
-    
-    # Scene properties
+
+    bpy.types.Scene.procrustes_original_object = bpy.props.PointerProperty(
+        name="Original Object",
+        description="The reference mesh object (stays fixed during alignment)",
+        type=bpy.types.Object,
+        poll=lambda self, obj: obj.type == 'MESH',
+    )
+
+    bpy.types.Scene.procrustes_target_object = bpy.props.PointerProperty(
+        name="Target Object",
+        description="The mesh object that will be aligned to the Original",
+        type=bpy.types.Object,
+        poll=lambda self, obj: obj.type == 'MESH',
+    )
+
+    bpy.types.Scene.procrustes_landmark_state = bpy.props.EnumProperty(
+        name="Landmark State",
+        items=[
+            ('IDLE', "Idle", ""),
+            ('SELECTING_ORIGINAL', "Selecting Original", ""),
+            ('SELECTING_TARGET', "Selecting Target", ""),
+        ],
+        default='IDLE',
+    )
+
+    bpy.types.Scene.procrustes_pending_landmark_name = bpy.props.StringProperty(
+        name="Pending Landmark Name",
+        description="Internal: name of the landmark pair currently being created",
+        default="",
+    )
+
     bpy.types.Scene.procrustes_landmark_name = bpy.props.StringProperty(
         name="Landmark Name",
-        description="Name for the landmark to be created",
-        default="landmark_"
+        description="Name for the next landmark pair",
+        default="landmark_1",
     )
-    
-    bpy.types.Scene.procrustes_selected_vertex = bpy.props.IntProperty(
-        name="Selected Vertex",
-        description="Index of the currently selected vertex",
-        default=-1
+
+    bpy.types.Scene.procrustes_method = bpy.props.EnumProperty(
+        name="Method",
+        description="Alignment method",
+        items=[
+            ('PROCRUSTES', "Procrustes (rigid)",
+             "Rigid alignment: rotation, translation and one global scale. "
+             "Landmarks are matched in a least-squares sense (best compromise)"),
+            ('TPS', "Thin-Plate Spline (warp)",
+             "Non-rigid warp: deforms the target mesh so each landmark lands "
+             "exactly on its match, with smooth deformation in between"),
+        ],
+        default='PROCRUSTES',
     )
-    
+
+    bpy.types.Scene.procrustes_tps_smoothing = bpy.props.FloatProperty(
+        name="TPS Smoothing",
+        description="Regularization for TPS. 0 = exact match; higher values "
+                    "relax the fit so noisy/mis-clicked landmarks are not "
+                    "matched exactly",
+        default=0.0,
+        min=0.0,
+        soft_max=10.0,
+    )
+
     bpy.types.Scene.procrustes_allow_scale = bpy.props.BoolProperty(
         name="Allow Scale",
         description="Allow scaling during Procrustes alignment",
-        default=True
+        default=True,
     )
-    
+
     bpy.types.Scene.procrustes_allow_reflection = bpy.props.BoolProperty(
         name="Allow Reflection",
         description="Allow reflection during Procrustes alignment",
-        default=False
+        default=False,
     )
-    
-    # Reference object selector (optional)
-    bpy.types.Scene.procrustes_reference_object = bpy.props.PointerProperty(
-        name="Reference Object",
-        description="Optional: choose an object to be the fixed reference for alignment",
-        type=bpy.types.Object
-    )
-    
-    # Preview active flag
+
     bpy.types.Scene.procrustes_preview_active = bpy.props.BoolProperty(
         name="Preview Active",
         description="Display landmark preview overlay in the 3D View",
         default=False,
-        update=preview_toggle_update
+        update=preview_toggle_update,
     )
 
 
 def unregister():
-    """Unregister addon classes and properties"""
-    
-    # Unregister operators
-    bpy.utils.unregister_class(PROCRUSTES_OT_select_landmark)
+    bpy.utils.unregister_class(PROCRUSTES_OT_start_landmark)
     bpy.utils.unregister_class(PROCRUSTES_OT_submit_landmark)
-    bpy.utils.unregister_class(PROCRUSTES_OT_delete_landmark)
+    bpy.utils.unregister_class(PROCRUSTES_OT_cancel_landmark)
+    bpy.utils.unregister_class(PROCRUSTES_OT_delete_landmark_pair)
+    bpy.utils.unregister_class(PROCRUSTES_OT_verify_landmarks)
     bpy.utils.unregister_class(PROCRUSTES_OT_align_objects)
     bpy.utils.unregister_class(PROCRUSTES_OT_clear_landmarks)
-    
-    # Unregister UI panel
     bpy.utils.unregister_class(PROCRUSTES_PT_panel)
-    
-    # Delete scene properties
+
+    del bpy.types.Scene.procrustes_original_object
+    del bpy.types.Scene.procrustes_target_object
+    del bpy.types.Scene.procrustes_landmark_state
+    del bpy.types.Scene.procrustes_pending_landmark_name
     del bpy.types.Scene.procrustes_landmark_name
-    del bpy.types.Scene.procrustes_selected_vertex
+    del bpy.types.Scene.procrustes_method
+    del bpy.types.Scene.procrustes_tps_smoothing
     del bpy.types.Scene.procrustes_allow_scale
     del bpy.types.Scene.procrustes_allow_reflection
-    del bpy.types.Scene.procrustes_reference_object
-    # Preview cleanup and property
+
     preview_cleanup()
     del bpy.types.Scene.procrustes_preview_active

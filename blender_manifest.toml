@@ -3,7 +3,7 @@ schema_version = "1.0.0"
 id = "procrustes_aligner"
 name = "Procrustes Aligner"
 tagline = "Align multiple objects using landmark-based Procrustes analysis"
-version = "1.0.0"
+version = "1.1.0"
 type = "add-on"
 
 maintainer = "Miguel Diaz de Leon-Munoz <migueldlm1307@gmail.com>"

@@ -105,6 +105,91 @@ def procrustes_alignment(
     return True, transform, scale
 
 
+def tps_fit(source: np.ndarray, dest: np.ndarray, smoothing: float = 0.0):
+    """Fit a 3D Thin-Plate Spline mapping source landmarks onto dest landmarks.
+
+    The TPS warp passes exactly through every landmark (when smoothing == 0)
+    and deforms space smoothly in between, minimizing bending energy.
+
+    Args:
+        source: Nx3 array of source landmark coordinates (the points to move)
+        dest:   Nx3 array of destination landmark coordinates (where they go)
+        smoothing: Regularization lambda. 0 = exact interpolation; larger
+                   values relax the fit so noisy landmarks are not matched
+                   exactly (useful to suppress mis-clicks).
+
+    Returns:
+        (success, params) where params is an (N+4)x3 array of TPS coefficients,
+        or (False, None) if the system could not be solved.
+    """
+    source = np.asarray(source, dtype=np.float64)
+    dest = np.asarray(dest, dtype=np.float64)
+
+    if source.shape != dest.shape or source.shape[0] < 4 or source.shape[1] != 3:
+        # 3D TPS needs at least 4 non-coplanar landmarks for the affine part.
+        return False, None
+
+    n = source.shape[0]
+
+    # Radial kernel U(r) = r is the biharmonic Green's function in 3D.
+    diff = source[:, None, :] - source[None, :, :]
+    K = np.sqrt(np.sum(diff ** 2, axis=2))
+
+    if smoothing > 0.0:
+        K = K + np.eye(n) * smoothing
+
+    P = np.hstack([np.ones((n, 1)), source])  # (n, 4)
+
+    L = np.zeros((n + 4, n + 4))
+    L[:n, :n] = K
+    L[:n, n:] = P
+    L[n:, :n] = P.T
+
+    Y = np.vstack([dest, np.zeros((4, 3))])
+
+    try:
+        params, _residuals, _rank, _sv = np.linalg.lstsq(L, Y, rcond=None)
+    except np.linalg.LinAlgError:
+        return False, None
+
+    if not np.all(np.isfinite(params)):
+        return False, None
+
+    return True, params
+
+
+def tps_apply(params: np.ndarray, source: np.ndarray, points: np.ndarray,
+              chunk_size: int = 50000) -> np.ndarray:
+    """Apply a fitted TPS warp to an array of points.
+
+    Args:
+        params: (N+4)x3 coefficients from tps_fit
+        source: Nx3 source landmarks used in the fit
+        points: Mx3 points to warp
+        chunk_size: process points in chunks to bound memory on large meshes
+
+    Returns:
+        Mx3 array of warped points
+    """
+    source = np.asarray(source, dtype=np.float64)
+    points = np.asarray(points, dtype=np.float64)
+    n = source.shape[0]
+
+    w = params[:n]   # (n, 3) non-linear weights
+    a = params[n:]   # (4, 3) affine part
+
+    out = np.empty_like(points)
+    for start in range(0, points.shape[0], chunk_size):
+        chunk = points[start:start + chunk_size]
+        Ph = np.hstack([np.ones((chunk.shape[0], 1)), chunk])
+        affine = Ph @ a
+        diff = chunk[:, None, :] - source[None, :, :]
+        r = np.sqrt(np.sum(diff ** 2, axis=2))  # (chunk, n)
+        out[start:start + chunk_size] = affine + r @ w
+
+    return out
+
+
 def compute_alignment_error(
     reference_points: np.ndarray,
     target_points: np.ndarray,
